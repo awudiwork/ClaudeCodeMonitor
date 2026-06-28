@@ -1,0 +1,21 @@
+# 构建输出
+Bin/
+[Dd]ebug/
+[Rr]elease/
+x64/
+Win32/
+ARM64EC/
+
+# VS 中间文件
+.vs/
+*.user
+*.aps
+*.idb
+*.pdb
+*.obj
+*.pch
+*.ipch
+*.tlog
+*.log
+*.lastbuildstate
+*.recipe

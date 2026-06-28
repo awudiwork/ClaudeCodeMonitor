@@ -1,0 +1,39 @@
+{
+  "//说明": "把下面 hooks 段的内容合并进 ~/.claude/settings.json（或某个项目的 .claude/settings.json）。命令调用 cc-status.ps1 写状态文件，TrafficMonitor 插件据此点亮指示灯。",
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "& \"$HOME\\.claude\\cc-status.ps1\" -State idle" } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "& \"$HOME\\.claude\\cc-status.ps1\" -State running" } ] }
+    ],
+    "PreToolUse": [
+      { "matcher": "*", "hooks": [ { "type": "command", "shell": "powershell", "async": true, "command": "& \"$HOME\\.claude\\cc-status.ps1\" -State running" } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "*", "hooks": [ { "type": "command", "shell": "powershell", "async": true, "command": "& \"$HOME\\.claude\\cc-status.ps1\" -State running" } ] }
+    ],
+    "Notification": [
+      { "matcher": "permission_prompt", "hooks": [ { "type": "command", "shell": "powershell", "command": "& \"$HOME\\.claude\\cc-status.ps1\" -State waiting" } ] },
+      { "matcher": "idle_prompt", "hooks": [ { "type": "command", "shell": "powershell", "command": "& \"$HOME\\.claude\\cc-status.ps1\" -State idle" } ] }
+    ],
+    "PermissionRequest": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "& \"$HOME\\.claude\\cc-status.ps1\" -State waiting" } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "& \"$HOME\\.claude\\cc-status.ps1\" -State idle" } ] }
+    ],
+    "StopFailure": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "& \"$HOME\\.claude\\cc-status.ps1\" -State error" } ] }
+    ],
+    "PostToolUseFailure": [
+      { "matcher": "*", "hooks": [ { "type": "command", "shell": "powershell", "command": "& \"$HOME\\.claude\\cc-status.ps1\" -State error" } ] }
+    ],
+    "PermissionDenied": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "& \"$HOME\\.claude\\cc-status.ps1\" -State error" } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "& \"$HOME\\.claude\\cc-status.ps1\" -State end" } ] }
+    ]
+  }
+}
