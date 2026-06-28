@@ -1,7 +1,9 @@
 name: Build Plugin
 
 # 独立构建 Claude Code 状态监控插件（无需主程序解决方案）。
-# windows-latest 的 runner 自带 VS2022 + MFC，本机即使没装 MFC 也能在云端构建。
+# 钉到 windows-2022（VS2022，自带 v143 的 MFC 组件）。
+# 注意：windows-latest 已滚动到 VS18 新镜像，不预装 MFC，会报 MSB8041。
+# 插件位数必须与 TrafficMonitor.exe 一致；这里只构建 x64（对应 64 位 TrafficMonitor）。
 on:
   workflow_dispatch:          # 允许在 Actions 页面手动触发
   push:                       # 每次 push 自动构建
@@ -9,13 +11,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: x64     # 64 位 TrafficMonitor 用这个
-          - platform: Win32   # 32 位 TrafficMonitor 用这个
+    runs-on: windows-2022
 
     steps:
       - uses: actions/checkout@v4
@@ -23,12 +19,12 @@ jobs:
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
 
-      - name: Build plugin
-        run: msbuild ClaudeCodeMonitor.vcxproj -p:Configuration=Release -p:Platform=${{ matrix.platform }} -p:platformToolset=v143 -m
+      - name: Build plugin (x64)
+        run: msbuild ClaudeCodeMonitor.vcxproj -p:Configuration=Release -p:Platform=x64 -p:platformToolset=v143 -m
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ClaudeCodeMonitor_${{ matrix.platform }}
-          path: Bin/${{ matrix.platform }}/Release/ClaudeCodeMonitor.dll
+          name: ClaudeCodeMonitor_x64
+          path: Bin/x64/Release/ClaudeCodeMonitor.dll
           if-no-files-found: error
