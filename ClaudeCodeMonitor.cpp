@@ -19,7 +19,9 @@ IPluginItem* CClaudeCodeMonitor::GetItem(int index)
     switch (index)
     {
     case 0:
-        return &m_status_item;
+        return &m_status_item;       // 下灯：当前状态
+    case 1:
+        return &m_completion_item;   // 上灯：完成提示
     default:
         break;
     }

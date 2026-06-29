@@ -40,6 +40,10 @@ public:
     int GetPhase() const { return m_phase; }                    // 闪烁相位计数
     const std::wstring& GetTooltip() const { return m_tooltip; }
 
+    // —— 上灯（完成提示）相关：基于当前会话实时状态 ——
+    bool AnySession() const { return m_any_session; }   // 是否有任意（未失效的）会话
+    bool AnyDone() const { return m_any_done; }         // 是否有会话已答完(空闲/错误)
+
     const CString& StringRes(UINT id);      // 根据资源 id 获取一个字符串资源（带缓存）
 
     SettingData m_setting_data;
@@ -55,4 +59,8 @@ private:
     int m_phase{ 0 };
     std::wstring m_tooltip;
     std::map<UINT, CString> m_string_table;
+
+    // —— 上灯统计（当前会话实时状态）——
+    bool m_any_session{ false };   // 本周期是否有任意会话
+    bool m_any_done{ false };      // 本周期是否有会话处于空闲/错误（已答完，非运行/等待）
 };

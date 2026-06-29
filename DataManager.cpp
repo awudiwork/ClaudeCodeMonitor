@@ -162,6 +162,9 @@ void CDataManager::RefreshStatus()
     struct SessionInfo { CCState state; std::wstring cwd; };
     std::vector<SessionInfo> sessions;
 
+    // —— 上灯统计：基于当前会话实时状态 ——
+    bool any_done = false;       // 有会话处于空闲/错误（已答完，非运行/等待）
+
     if (!dir.empty())
     {
         FILETIME ft_now{};
@@ -200,12 +203,20 @@ void CDataManager::RefreshStatus()
                 if (static_cast<int>(st) > static_cast<int>(agg))
                     agg = st;
                 sessions.push_back({ st, cwd });
+
+                // 上灯统计：空闲或错误都算"已答完/非运行"
+                if (st == CCState::Idle || st == CCState::Error)
+                    any_done = true;
             } while (FindNextFileW(hFind, &fd));
             FindClose(hFind);
         }
     }
 
     m_state = agg;
+
+    // —— 更新上灯统计 ——
+    m_any_session = !sessions.empty();
+    m_any_done = any_done;
 
     // 构建 tooltip 文本
     std::wstring tip = StringRes(StateStringId(agg)).GetString();

@@ -250,6 +250,7 @@
   <ItemGroup>
     <ClInclude Include="include\PluginInterface.h" />
     <ClInclude Include="ClaudeCodeMonitor.h" />
+    <ClInclude Include="CompletionLightItem.h" />
     <ClInclude Include="DataManager.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="OptionsDlg.h" />
@@ -259,6 +260,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ClaudeCodeMonitor.cpp" />
+    <ClCompile Include="CompletionLightItem.cpp" />
     <ClCompile Include="DataManager.cpp" />
     <ClCompile Include="OptionsDlg.cpp" />
     <ClCompile Include="pch.cpp">

@@ -149,6 +149,7 @@ BEGIN
     IDS_STATE_ERROR         "错误"
     IDS_STATE_NONE          "无会话"
     IDS_TIP_SESSIONS        "个会话"
+    IDS_COMPLETION_ITEM     "Claude Code 完成提示"
 END
 
 #endif    // 中文(简体，中国) resources
@@ -199,6 +200,7 @@ BEGIN
     IDS_STATE_ERROR         "Error"
     IDS_STATE_NONE          "No session"
     IDS_TIP_SESSIONS        "session(s)"
+    IDS_COMPLETION_ITEM     "Claude Code Completion"
 END
 
 #endif    // 英语(美国) resources

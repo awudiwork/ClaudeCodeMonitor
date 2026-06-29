@@ -12,6 +12,26 @@ TrafficMonitor 插件：在任务栏（及主窗口）显示一盏**状态指示
 
 多个会话同时开着时，按优先级 **错误 > 等待 > 运行 > 空闲** 汇总成一盏灯。鼠标悬停指示灯可在 tooltip 看到各会话明细。
 
+## 两个指示灯
+
+插件提供**两个显示项**，可分别加到任务栏（双行布局下会上下叠放）：
+
+**下灯「Claude Code 状态」** —— 当前状态（即上表）：⚪空闲 / 🟢运行 / 🟡等授权(闪) / 🔴错误(闪) / ⚫无会话。
+
+**上灯「Claude Code 完成提示」** —— 基于**当前会话实时状态**（不锁存）：
+
+| 上灯 | 含义 |
+|---|---|
+| 🔵 蓝（常亮） | **至少有一个会话已答完**(空闲/错误) → 轮到你了 |
+| 🟢 绿 | **有会话，且全部在运行/进行中**（没有一个空闲） |
+| ⚫ 空心圈 | 没有会话 |
+
+- 判定优先级：**有会话答完 → 蓝；否则全在跑 → 绿；否则灭。**
+- 一个会话在跑→🟢；它答完→🔵（停在空闲就一直蓝）；你再发问→🟢。
+- 等授权(黄)算"进行中"→上灯仍🟢（"等授权"由下灯的黄表达）。
+- 蓝灯保持到该空闲会话**失效为止**（默认约 10 分钟，可在选项调失效秒数）。
+- 只想用一个灯也行：只加下灯 = 纯当前状态；只加上灯 = 工作中/已答完 概览。
+
 ---
 
 ## 工作原理
@@ -56,13 +76,49 @@ msbuild ClaudeCodeMonitor.vcxproj -p:Configuration=Release -p:Platform=x64 -p:pl
 - 在「任务栏设置」或「主窗口设置」中，把显示项「Claude Code 状态」勾选/拖入显示列表。
 
 ### 3. 配置 Claude Code hooks
-1. 把 `hooks\cc-status.ps1` 复制到 `%USERPROFILE%\.claude\`。
-2. 把 `hooks\settings.sample.json` 里的 `hooks` 段合并进 `%USERPROFILE%\.claude\settings.json`
-   （若已有 `hooks`，按事件名合并，不要整体覆盖）。
-3. 重启 Claude Code，或在会话中执行 `/hooks` 确认已加载。
 
-> 如果你的 Claude Code 版本不支持 `"shell": "powershell"`，可把每条命令改为：
-> `powershell -NoProfile -ExecutionPolicy Bypass -File "%USERPROFILE%\.claude\cc-status.ps1" -State running`
+**① 复制脚本**：把 `hooks\cc-status.ps1` 复制到 `%USERPROFILE%\.claude\`（即 `C:\Users\<你>\.claude\cc-status.ps1`）。
+
+**② 配置 hooks**：编辑 `%USERPROFILE%\.claude\settings.json`，把下面整个 `"hooks": { ... }` 块加进最外层对象里
+（若文件已有别的配置，在最后一项后面加个逗号再粘贴；若已有 `hooks`，按事件名合并，不要整体覆盖）：
+
+```json
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "Set-ExecutionPolicy -Scope Process Bypass -Force; & \"$HOME/.claude/cc-status.ps1\" -State idle" } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "Set-ExecutionPolicy -Scope Process Bypass -Force; & \"$HOME/.claude/cc-status.ps1\" -State running" } ] }
+    ],
+    "PreToolUse": [
+      { "matcher": "*", "hooks": [ { "type": "command", "shell": "powershell", "command": "Set-ExecutionPolicy -Scope Process Bypass -Force; & \"$HOME/.claude/cc-status.ps1\" -State running" } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "*", "hooks": [ { "type": "command", "shell": "powershell", "command": "Set-ExecutionPolicy -Scope Process Bypass -Force; & \"$HOME/.claude/cc-status.ps1\" -State running" } ] }
+    ],
+    "Notification": [
+      { "matcher": "permission_prompt", "hooks": [ { "type": "command", "shell": "powershell", "command": "Set-ExecutionPolicy -Scope Process Bypass -Force; & \"$HOME/.claude/cc-status.ps1\" -State waiting" } ] },
+      { "matcher": "idle_prompt", "hooks": [ { "type": "command", "shell": "powershell", "command": "Set-ExecutionPolicy -Scope Process Bypass -Force; & \"$HOME/.claude/cc-status.ps1\" -State idle" } ] }
+    ],
+    "PermissionRequest": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "Set-ExecutionPolicy -Scope Process Bypass -Force; & \"$HOME/.claude/cc-status.ps1\" -State waiting" } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "Set-ExecutionPolicy -Scope Process Bypass -Force; & \"$HOME/.claude/cc-status.ps1\" -State idle" } ] }
+    ],
+    "StopFailure": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "Set-ExecutionPolicy -Scope Process Bypass -Force; & \"$HOME/.claude/cc-status.ps1\" -State error" } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "Set-ExecutionPolicy -Scope Process Bypass -Force; & \"$HOME/.claude/cc-status.ps1\" -State end" } ] }
+    ]
+  }
+```
+
+**③ 生效**：保存后**重启 Claude Code**，或在会话里执行 `/hooks` 确认已加载。
+
+> 命令里的 `Set-ExecutionPolicy -Scope Process Bypass` 前缀用于绕过 PowerShell 执行策略，确保脚本能跑。
+> 上面这段与 `hooks/settings.sample.json` 内容一致，直接复制本块即可。
 
 ---
 
@@ -71,13 +127,14 @@ msbuild ClaudeCodeMonitor.vcxproj -p:Configuration=Release -p:Platform=x64 -p:pl
 | 状态 | 触发的 hook 事件 |
 |---|---|
 | idle | `SessionStart`、`Stop`、`Notification`(idle_prompt) |
-| running | `UserPromptSubmit`、`PreToolUse`、`PostToolUse` |
+| running | `UserPromptSubmit`、`PreToolUse`、`PostToolUse`（同意授权后靠它把黄灯拉回绿） |
 | waiting | `PermissionRequest`、`Notification`(permission_prompt) |
-| error | `StopFailure`、`PostToolUseFailure`、`PermissionDenied` |
+| error | `StopFailure`（仅整轮因 API 错误失败） |
 | （删除文件）| `SessionEnd` |
 
-> 红色依赖较新的 `StopFailure` / `PostToolUseFailure` / `PermissionDenied` 事件。
-> 旧版 Claude Code 若无这些事件，红色仅在 `PermissionDenied` 时亮，其余状态不受影响。
+> ⚠️ 红色**只**用 `StopFailure`（整轮因 API 错误失败，如 rate_limit / overloaded / 认证失败）。
+> **不要**把 `PostToolUseFailure` 映射成红色——普通工具非零退出（编译失败、测试没过、grep 无匹配等）都会触发它，会导致正常干活时红灯乱闪。
+> 也**不要**用 `async: true`——异步 hook 不保证执行顺序，`running` 可能盖掉 `Stop` 写的 `idle`，导致灯卡在运行中。
 
 ---
 
@@ -94,11 +151,17 @@ msbuild ClaudeCodeMonitor.vcxproj -p:Configuration=Release -p:Platform=x64 -p:pl
 
 ## 验证
 
-不依赖 Claude，手动验证桥路是否打通：
+不依赖 Claude，手动验证桥路是否打通。**注意**：要用 `powershell -File` 开新进程喂 stdin，
+不能用 `| & 脚本.ps1`（那样 JSON 会被当成管道参数，报 ParameterBindingException）：
 ```powershell
-'{"session_id":"t1","cwd":"E:\\demo"}' | & "$HOME\.claude\cc-status.ps1" -State running
-# 任务栏圆点应变绿；依次试 waiting / error / idle 看黄/红/灰；end 熄灭
-'{"session_id":"t1"}' | & "$HOME\.claude\cc-status.ps1" -State end
+'{"session_id":"t1","cwd":"E:\demo"}' | powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.claude\cc-status.ps1" -State running
+# 任务栏圆点应变绿；依次把 -State 换成 waiting / error / idle 看黄/红/灰
+'{"session_id":"t1"}' | powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.claude\cc-status.ps1" -State end   # 熄灭
+```
+
+查看当前所有会话状态文件：
+```powershell
+Get-ChildItem "$HOME\.claude\cc-status\" -Filter *.txt | ForEach-Object { "{0}  =>  {1}" -f $_.Name, (Get-Content $_.FullName -TotalCount 1) }
 ```
 
 随后开一个真实 Claude Code 会话：提交提问→绿，请求授权→黄，回答完毕→灰。

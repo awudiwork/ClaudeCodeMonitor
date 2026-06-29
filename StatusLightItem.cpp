@@ -61,6 +61,32 @@ static COLORREF Dim(COLORREF c, double f)
         static_cast<int>(GetBValue(c) * f));
 }
 
+// 画一个实心圆点（带略深描边）
+static void DrawFilledDot(HDC hdc, const CRect& dot, COLORREF color)
+{
+    HBRUSH brush = CreateSolidBrush(color);
+    HPEN pen = CreatePen(PS_SOLID, 1, Dim(color, 0.6));
+    HGDIOBJ old_brush = ::SelectObject(hdc, brush);
+    HGDIOBJ old_pen = ::SelectObject(hdc, pen);
+    ::Ellipse(hdc, dot.left, dot.top, dot.right, dot.bottom);
+    ::SelectObject(hdc, old_brush);
+    ::SelectObject(hdc, old_pen);
+    ::DeleteObject(brush);
+    ::DeleteObject(pen);
+}
+
+// 画一个空心圈（熄灭/闪烁的暗态）
+static void DrawHollowDot(HDC hdc, const CRect& dot, COLORREF ring)
+{
+    HPEN pen = CreatePen(PS_SOLID, 1, ring);
+    HGDIOBJ old_pen = ::SelectObject(hdc, pen);
+    HGDIOBJ old_brush = ::SelectObject(hdc, GetStockObject(NULL_BRUSH));
+    ::Ellipse(hdc, dot.left, dot.top, dot.right, dot.bottom);
+    ::SelectObject(hdc, old_pen);
+    ::SelectObject(hdc, old_brush);
+    ::DeleteObject(pen);
+}
+
 void CStatusLightItem::DrawItem(void* hDC, int x, int y, int w, int h, bool dark_mode)
 {
     CDC* pDC = CDC::FromHandle((HDC)hDC);
@@ -79,37 +105,23 @@ void CStatusLightItem::DrawItem(void* hDC, int x, int y, int w, int h, bool dark
     CRect dot(cx - d / 2, cy - d / 2, cx - d / 2 + d, cy - d / 2 + d);
 
     pDC->SetBkMode(TRANSPARENT);
+    HDC hdc = pDC->GetSafeHdc();
 
+    // 无会话：空心暗灰圈
     if (state == CCState::None)
     {
-        // 无会话：画一个空心暗灰圈表示"熄灭"（用原始 GDI 以便选入空画刷）
-        COLORREF ring = StateColor(state, dark_mode);
-        HDC hdc = pDC->GetSafeHdc();
-        HPEN pen = CreatePen(PS_SOLID, 1, ring);
-        HGDIOBJ old_pen = ::SelectObject(hdc, pen);
-        HGDIOBJ old_brush = ::SelectObject(hdc, GetStockObject(NULL_BRUSH));
-        ::Ellipse(hdc, dot.left, dot.top, dot.right, dot.bottom);
-        ::SelectObject(hdc, old_pen);
-        ::SelectObject(hdc, old_brush);
-        ::DeleteObject(pen);
+        DrawHollowDot(hdc, dot, StateColor(state, dark_mode));
         return;
     }
 
     COLORREF color = StateColor(state, dark_mode);
 
-    // 等待/错误状态：在奇数相位降低亮度，形成闪烁效果
-    if (g_data.m_setting_data.blink &&
+    // 闪烁：等待/错误，在奇数相位画空心圈 → 在"空心↔实心"之间闪烁
+    bool blink_off = g_data.m_setting_data.blink &&
         (state == CCState::Waiting || state == CCState::Error) &&
-        (g_data.GetPhase() % 2 == 1))
-    {
-        color = Dim(color, 0.35);
-    }
-
-    CBrush brush(color);
-    CPen pen(PS_SOLID, 1, Dim(color, 0.6));     // 略深的描边，增强边缘
-    CBrush* ob = pDC->SelectObject(&brush);
-    CPen* op = pDC->SelectObject(&pen);
-    pDC->Ellipse(dot);
-    pDC->SelectObject(ob);
-    pDC->SelectObject(op);
+        (g_data.GetPhase() % 2 == 1);
+    if (blink_off)
+        DrawHollowDot(hdc, dot, color);
+    else
+        DrawFilledDot(hdc, dot, color);
 }
